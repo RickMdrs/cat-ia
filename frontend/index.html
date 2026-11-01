@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAT.IA | Auditoria Governamental CREA-MA</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --crea-blue: #0033a0;
+            --crea-dark: #002266;
+            --bg-gray: #f1f5f9;
+            --text-main: #1e293b;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --terminal-bg: #0f172a;
+        }
+
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-gray); color: var(--text-main); margin: 0; }
+        
+        header { 
+            background: var(--crea-blue); color: white; padding: 15px 40px; 
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        
+        /* Upload Area */
+        .upload-zone {
+            border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px;
+            text-align: center; cursor: pointer; transition: all 0.3s;
+            background: #ffffff;
+        }
+        .upload-zone:hover { border-color: var(--crea-blue); background: #f8fafc; }
+        .file-counter { margin-top: 10px; font-weight: bold; color: var(--crea-blue); display: none; }
+
+        /* Tabela de Auditoria */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 15px; }
+        th { background: #f8fafc; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        
+        .badge { padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .badge-Aderente { background: #dcfce7; color: #166534; }
+        .badge-Indeferido { background: #fee2e2; color: #991b1b; }
+        .badge-Divergente { background: #fee2e2; color: #991b1b; }
+        .badge-Suspeito { background: #fef3c7; color: #92400e; }
+
+        /* Forensics (Raio-X) */
+        .forensic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; display: none; }
+        .forensic-grid.active { display: grid; }
+        
+        .terminal { background: var(--terminal-bg); border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; position: relative; min-height: 250px; overflow: hidden; }
+        .terminal p { color: #4ade80; font-size: 12px; margin: 4px 0; line-height: 1.4; }
+        .scan-line { position: absolute; width: 100%; height: 2px; background: rgba(74, 222, 128, 0.4); top: 0; animation: scanning 3s infinite; display: none; }
+
+        .signature-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .signature-img { max-width: 100%; max-height: 150px; border-radius: 4px; display: none; border: 1px solid #cbd5e1; }
+
+        @keyframes scanning { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+
+        .row-veto { background-color: #fff1f2 !important; color: #be123c; }
+
+        .btn { padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-main { background: var(--crea-blue); color: white; }
+        .btn-print { background: #10b981; color: white; margin-top: 20px; }
+        .btn-forensic { background: #1e293b; color: white; width: 100%; margin-top: 15px; justify-content: center; }
+
+        #relatorio-print { display: none; }
+        @media print {
+            .no-print { display: none !important; }
+            #relatorio-print { display: block !important; padding: 40px; }
+            table { border: 1px solid #000; }
+            th, td { border: 1px solid #000; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="relatorio-print">
+    <div style="text-align: center; border-bottom: 2px solid var(--crea-blue); padding-bottom: 10px; margin-bottom: 20px;">
+        <h2>CREA-MA | RELATÓRIO TÉCNICO DE AUDITORIA AUTOMATIZADA</h2>
+        <p>Sistema CAT.IA - Inteligência Artificial Forense</p>
+    </div>
+    <p><strong>Documento:</strong> <span id="pr-filename"></span></p>
+    <p><strong>ART:</strong> <span id="pr-art"></span></p>
+    <p><strong>Status Final:</strong> <span id="pr-status"></span></p>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead><tr><th>Exigência</th><th>Dado Extraído</th><th>Validação</th></tr></thead>
+        <tbody id="pr-table"></tbody>
+    </table>
+    <div style="margin-top: 20px; border: 1px solid #000; padding: 15px;">
+        <h4>Parecer Pericial (Raio-X de Metadados)</h4>
+        <p id="pr-forense"></p>
+    </div>
+</div>
+
+<header class="no-print">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="background: white; color: var(--crea-blue); padding: 5px 10px; border-radius: 4px; font-weight: 900;">CREA-MA</div>
+        <span style="font-weight: 500; opacity: 0.9;">CAT.IA Auditoria v3.1</span>
+    </div>
+    <div style="font-size: 14px;">
+        <i class="fa-solid fa-user-shield"></i> Auditor: <strong>RyK Medeiros</strong>
+    </div>
+</header>
+
+<div class="container no-print">
+    <div id="view-batch" class="card">
+        <h2 style="margin-top:0;"><i class="fa-solid fa-folder-tree"></i> Central de Atestados</h2>
+        <p style="color: #64748b;">Selecione os documentos para análise simultânea e validação no SITAC.</p>
+        
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+            <i class="fa-solid fa-file-pdf" style="font-size: 40px; color: var(--crea-blue);"></i>
+            <p><strong>Clique para selecionar ou arraste os PDFs</strong></p>
+            <div id="file-counter" class="file-counter">Nenhum arquivo anexado</div>
+            <input type="file" id="fileInput" hidden multiple accept=".pdf" onchange="updateFileLabel()">
+        </div>
+
+        <button class="btn btn-main" style="width: 100%; margin-top: 15px; justify-content: center;" onclick="processBatch()">
+            <i class="fa-solid fa-play"></i> INICIAR PROCESSAMENTO EM LOTE
+        </button>
+
+        <div id="batch-list" style="margin-top: 25px;"></div>
+    </div>
+
+    <div id="view-detail" class="card" style="display:none;">
+        <button class="btn" style="background:#e2e8f0; margin-bottom: 20px;" onclick="showBatch()">
+            <i class="fa-solid fa-arrow-left"></i> Voltar para a Fila
+        </button>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
+            <div>
+                <h1 id="det-filename" style="margin:0; font-size: 22px; color: var(--crea-blue);">Arquivo.pdf</h1>
+                <p id="det-summary" style="color:#64748b; margin-top:5px; font-size: 14px;"></p>
+            </div>
+            <div id="det-status-badge"></div>
+        </div>
+
+        <div id="veto-alert" style="display:none; background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 5px solid #ef4444;">
+            <i class="fa-solid fa-circle-xmark"></i> <strong>SITAC: ART NÃO ENCONTRADA.</strong> Os dados abaixo foram lidos do papel, mas não possuem validade no sistema oficial.
+        </div>
+
+        <h3 style="margin-top: 30px;"><i class="fa-solid fa-clipboard-check"></i> Resultado da Auditoria (Anexo IV)</h3>
+        <table>
+            <thead><tr><th>REQUISITO LEGAL</th><th>DADO EXTRAÍDO DO PDF</th><th>STATUS</th></tr></thead>
+            <tbody id="audit-table-body"></tbody>
+        </table>
+
+        <button class="btn btn-forensic" id="btn-scan" onclick="runForensics()">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> EXECUTAR PERÍCIA DE METADADOS (RAIO-X)
+        </button>
+
+        <div id="forensic-panel" class="forensic-grid">
+            <div class="terminal">
+                <div class="scan-line" id="scan-anim"></div>
+                <div id="term-output"></div>
+            </div>
+            <div class="signature-column">
+                <div class="signature-preview">
+                    <p style="font-size: 11px; color:#64748b; margin-top:0;">ASSINATURA IDENTIFICADA</p>
+                    <img id="sig-img" class="signature-img">
+                </div>
+                <div id="forensic-card" style="margin-top:15px; padding:15px; border-radius:8px; font-size: 13px; border: 1px solid #e2e8f0;">
+                    <strong>Veredicto Forense:</strong>
+                    <p id="forensic-text" style="margin-top:8px; color: #475569;"></p>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-print" style="width: 100%;" onclick="gerarRelatorioProfundo()">
+            <i class="fa-solid fa-file-export"></i> GERAR RELATÓRIO PROFUNDO (PDF)
+        </button>
+    </div>
+</div>
+
+<script>
+    let batchData = [];
+    let currentIdx = -1;
+
+    function updateFileLabel() {
+        const input = document.getElementById('fileInput');
+        const counter = document.getElementById('file-counter');
+        if (input.files.length > 0) {
+            counter.innerText = `${input.files.length} arquivo(s) selecionado(s).`;
+            counter.style.display = 'block';
+        }
+    }
+
+    async function processBatch() {
+        const files = document.getElementById('fileInput').files;
+        if (files.length === 0) return alert("Selecione os arquivos primeiro.");
+        
+        const list = document.getElementById('batch-list');
+        list.innerHTML = "<p>Processando...</p>";
+        batchData = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const formData = new FormData();
+            formData.append('arquivo', files[i]);
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/v1/analisar-documento-autonomo', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                batchData.push({ file: files[i], result: data });
+                renderBatchItem(i, files[i].name, data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+
+    function renderBatchItem(idx, name, data) {
+        const list = document.getElementById('batch-list');
+        if (idx === 0) list.innerHTML = "";
+        
+        const status = data.analise.classificacao_final;
+        const prof = data.dados_oficiais_banco.nome_profissional;
+        
+        list.innerHTML += `
+            <div class="card" style="padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong>${name}</strong><br>
+                    <span style="font-size:12px; color:#64748b;">Profissional: ${prof} | ART: ${data.art_encontrada_pela_ia}</span>
+                </div>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <span class="badge badge-${status}">${status}</span>
+                    <button class="btn btn-main" style="padding: 8px 16px; font-size:12px;" onclick="openDetail(${idx})">Ver Laudo</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function openDetail(idx) {
+        currentIdx = idx;
+        const item = batchData[idx];
+        const data = item.result;
+        const analise = data.analise;
+
+        document.getElementById('view-batch').style.display = 'none';
+        document.getElementById('view-detail').style.display = 'block';
+        document.getElementById('det-filename').innerText = item.file.name;
+        document.getElementById('det-summary').innerText = `ART: ${data.art_encontrada_pela_ia} | Protocolo: ${data.dados_oficiais_banco.numero_processo}`;
+        document.getElementById('det-status-badge').innerHTML = `<span class="badge badge-${analise.classificacao_final}" style="font-size:16px;">${analise.classificacao_final}</span>`;
+
+        // Regra de Veto Visual
+        const isVeto = data.dados_oficiais_banco.numero_processo === "SEM REGISTRO";
+        document.getElementById('veto-alert').style.display = isVeto ? 'block' : 'none';
+
+        const tbody = document.getElementById('audit-table-body');
+        tbody.innerHTML = "";
+        analise.relatorio_detalhado.forEach(row => {
+            tbody.innerHTML += `
+                <tr class="${isVeto ? 'row-veto' : ''}">
+                    <td><strong>${row.item}</strong></td>
+                    <td>${row.extraido}</td>
+                    <td><span class="badge badge-${row.status}">${row.status}</span></td>
+                </tr>
+            `;
+        });
+
+        // Reset do painel de perícia
+        document.getElementById('forensic-panel').classList.remove('active');
+        document.getElementById('sig-img').style.display = 'none';
+    }
+
+    async function runForensics() {
+        const item = batchData[currentIdx];
+        const formData = new FormData();
+        formData.append('arquivo', item.file);
+
+        const panel = document.getElementById('forensic-panel');
+        const term = document.getElementById('term-output');
+        const scan = document.getElementById('scan-anim');
+        
+        panel.classList.add('active');
+        scan.style.display = 'block';
+        term.innerHTML = "<p>> Conectando ao Módulo Forense CAT.IA...</p>";
+        
+        setTimeout(() => term.innerHTML += "<p>> Iniciando varredura estrutural de objetos PDF...</p>", 400);
+
+        const res = await fetch('http://127.0.0.1:8000/api/v1/pericia-visual-assinatura', { method: 'POST', body: formData });
+        const data = await res.json();
+        const p = data.pericia;
+
+        // Atualiza batchData com a perícia para o relatório
+        batchData[currentIdx].pericia = p;
+
+        setTimeout(() => {
+            term.innerHTML += `<p>> Criptografia Detectada: ${p.dados_tecnicos.criptografia_detectada}</p>`;
+            term.innerHTML += `<p>> Elementos de Imagem: ${p.dados_tecnicos.colagem_detectada}</p>`;
+            term.innerHTML += `<p>> Tipo de Assinatura: ${p.dados_tecnicos.tipo_traco}</p>`;
+            term.innerHTML += `<p style="color:#fff; background:var(--crea-blue); padding:4px; margin-top:10px;">> VEREDICTO: ${p.status_forense}</p>`;
+            
+            const sigImg = document.getElementById('sig-img');
+            sigImg.src = `data:image/jpeg;base64,${p.imagem_analisada_b64}`;
+            sigImg.style.display = 'block';
+            
+            document.getElementById('forensic-text').innerText = p.parecer_pericial;
+            document.getElementById('forensic-card').style.background = p.status_forense === "Autêntico" ? "#f0fdf4" : (p.status_forense === "Fraude" ? "#fef2f2" : "#fffbeb");
+            scan.style.display = 'none';
+        }, 1500);
+    }
+
+    function gerarRelatorioProfundo() {
+        const item = batchData[currentIdx];
+        const pericia = item.pericia || { status_forense: "Não realizada", parecer_pericial: "Executar varredura de metadados antes de emitir." };
+        
+        document.getElementById('pr-filename').innerText = item.file.name;
+        document.getElementById('pr-art').innerText = item.result.art_encontrada_pela_ia;
+        document.getElementById('pr-status').innerText = item.result.analise.classificacao_final;
+        document.getElementById('pr-forense').innerText = pericia.parecer_pericial;
+
+        const prTable = document.getElementById('pr-table');
+        prTable.innerHTML = "";
+        item.result.analise.relatorio_detalhado.forEach(row => {
+            prTable.innerHTML += `<tr><td>${row.item}</td><td>${row.extraido}</td><td>${row.status}</td></tr>`;
+        });
+
+        window.print();
+    }
+
+    function showBatch() {
+        document.getElementById('view-detail').style.display = 'none';
+        document.getElementById('view-batch').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
